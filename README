@@ -1,0 +1,41 @@
+=== T/H ===
+cond3d.cpp - 3D conduction-convection 
+
+segcond - 1D conduction - heat tranfer at wall
+
+segmult - multiple solution of segcond
+
+tricond - 1D triso conduction problem : enfroce Tavg = 0
+
+trimult - multiple solution of tricond
+
+=== Neutron ===
+cappsimple - simple eigenvalue problem for CAPP
+	print axial flux
+cappworth - critcality along control rod position
+
+capptcoef - criticality along Tm, Tf variation
+
+cappkin - delayed neutron transient
+
+=== Combined ===
+cappcomp - solve neutron - TH with fuel segment (w/o) TRISO
+  * this is recommendable 
+cappdyn - solve neutron - TH with segment and TRISO
+  * this is unstable and requires too small time step.
+
+== aux. programs ==
+thproflow - check flow properties
+thprocond - check thermal properties
+mpwork - check MPwork class
+
+geomcapp - check geometry
+
+etricond - simple 1 triangle prism problem
+etriseg - simple TH with Core3D and SegCond
+
+coredesc - Core description class to obtain required parameters
+
+cross section db : MMR1g.db
+
+
