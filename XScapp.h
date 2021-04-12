@@ -1,5 +1,37 @@
 /*
  * 	XScapp.h
+ * 	derived class for CAPP cross section retrieve fro database
+ *     Usage:
+ * 	 void setGeom(GeomCAPP *geom); - set geometry for CAPP configuration
+ *	   geom : CAPP geometry class
+ *	 void open(const char *dbfn, int efpd, double Tm_ref, double Tf_ref);
+ *	  - open cross section database
+ *	   dbfn : database file name
+ *	   efpd : efpd of the cross section sets
+ *	   Tm_ref : reference mod T given to cross section
+ *	   Tf_ref : reference fuel T given to cross section
+ *	 void getSig(int tz, double Tm, double Tf, double sig[]);
+ *	  - get cross section for element tz 
+ *	   tz : element number (tz=t*nz+z)
+ *	   Tm : moderator temp. (K)
+ *	   Tf : fuel temp (K)
+ *	   sig : returning cross section (sigtr/sigab/signf)
+ *	 double getSigtr(int tz, double Tm, double Tf);
+ *	   returns sigtr
+ *	   tz : element number
+ *	   Tm : moderator temp. (K)
+ *	   Tf : fuel temp (K)
+ *	 double getSigab(int tz, double Tm, double Tf);
+ *	   returns sigab
+ *	   tz : element number
+ *         Tm : moderator temp. (K)
+ *         Tf : fuel temp (K)
+  double getSignf(int tz, double Tm, double Tf);
+  double getFlu(int tz);
+  double *getFlu() { return flu; };
+  double getFima(int tz);
+  double *getFima() { return fima; };
+
  */
 #include "XS.h"
 #include "GeomCAPP.h"

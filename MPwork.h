@@ -20,12 +20,14 @@
  *        fima : percent fima. used for kernel property
  *        nmats : number of material zone. current 3 (graphite/he gap/compact)
  *        TK : temperature of each zone (K)
- *       returns
+ *       output:
  *        cond : array of conductivity (W/m/K)
  *        rhocp : array of heat capacity (J/m^3/K)
  *      void makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
  *        Vec condvec[], Vec rhocpvec[]);
  *       vector version. each vector is same size (npows)
+ *       output:
+ *         condvec, rhocpvec
  *      void makeTriProp(double flu, double fima, double TK,
  *        int nmats, double cond[], double rhocp[]);
  *       compute material properties required for TriCond
@@ -33,12 +35,14 @@
  *         fima : percent fima. used for kernel property
  *         TK : temperature (K). compute material property using single temperature.
  *         nmats : number of material zone. current 6 (ker/buf/iPyC/SiC/oPyC/NITE)
- *       returns
+ *       output:
  *         cond : array of conductivity (W/m/K)
  *         rhocp : array of heat capacity (J/m^3/K)
  *      void makeTriProp(Vec fluvec, Vec fimavec, Vec TKvec,
  *        int nmats, Vec condvec[], Vec rhocpvec[]);
  *       vector version
+ *       output:
+ *         condvec, rhocpvec
  *
  *   note) it need lapack and petsc.
  *      MPwork.o: MPwork.cpp

@@ -9,7 +9,7 @@
  * 	    geom : class descrbing 3D prismatic geometry
  * 	  void setFluence(double *flu); - set fluence for Thermal property
  * 	    flu : array of fluence (10^25 n/m^2)
- * 	  void setTHpro(THpro *thpro);	- specify thermal property
+ * 	  void setTHpro(THpro *thpro);	- specify thermal property class
  *	    thpro : class for thermal conductivity and heat capacity
  *	      * if thpro is NULL, builtin property values will be used
  * 	  void setMdot(double Mdot); - specifies flows rate
@@ -28,6 +28,8 @@
  * 	    epsA : absolute tolerance (default 1.0e-5)
  * 	  double step(double dt, Vec powden);
  * 	    returns LTE estimator (time step is when <1: narrow, > 1: wide)
+ * 	    dt : time step size (sec)
+ * 	    powden : power density vector
  * 	  void march();  - prepare for next time step
  * 	   * variables are preserved until march is called.
  * 	  double getTpeak();

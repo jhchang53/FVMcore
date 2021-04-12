@@ -23,6 +23,7 @@
  *	  returns dz of the element
  *	  t : triangle numer (2D)
  *	  z : axial number
+ *	  output:
  *	  x2d : array of x-coord. of triangle vertices (in ccw)
  *	  y2d : array of y-coord.
  *	  node : point numbers of the triangular prism (FEM15)
@@ -62,6 +63,7 @@
  *	  returns volume of the element (t,z)
  *  	  t : triangle number
  *	  z : axial number
+ *	  output:
  *	  tb: neighbor element number (tz). size 5 array (top/bottom/3 sides)
  *	  area : surface areas. size 5 array
  *	  dist : distance to the surface from the center of element. size 5 array

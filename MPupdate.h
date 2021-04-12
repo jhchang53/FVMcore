@@ -1,12 +1,19 @@
 /*
- * 	MPupdate.h
+ * 	MPupdate.h - derived class of MPwork
  *	update SegCdond and TriCond property
  *     Usage:
-  MPupdate();
-  ~MPupdate();
-  void init(int npows);
-  double updateProp(SegCond *seg, TriCond *tri, Vec fluvec, Vec fimavec);
-
+ * 	MPupdate(); - construtor
+ *	~MPupdate(); - destructor
+ * 	void init(int npows); - initialize for size npows vectors
+ * 	  npows : size of vectors
+ *	double updateProp(SegCond *seg, TriCond *tri, Vec fluvec, Vec fimavec);
+ *	 - update conductivity/heat capacity for SegCond/TriCond model
+ *	  returns difference in temperature
+ *	  seg : SegCond class
+ *	  tri : TriCond class
+ *	  output:
+ *	  fluvec : fluence vector
+ *	  fimavec : % fima vector
  */
 #include "MPwork.h"
 #include "SegCond.h"
