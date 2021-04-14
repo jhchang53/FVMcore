@@ -7,6 +7,8 @@
  *    usage:
  *      void set(double Psys);
  *        Psys: system pressure (Pa) required to compute He gap heat capacity
+ *      void setEmiss(double emiss);
+ *        set graphite emissivity for compact gap (default 0.7)
  *      void setTriso(double dKer, int nlays, double tlay[], double PF);
  *       set Triso dimensions (in meter)
  *        dKer : kernel diameter
@@ -14,17 +16,18 @@
  *        tlay[] : coating thickness
  *        PF :  packing fraction (required to compute equiv. matrix volume)
  *      void makeSegProp(double flu, double fima, int nmats, double TK[],
- *        double cond[], double rhocp[]);
+ *        double rad, double cond[], double rhocp[]);
  *       compute material properties required for SegCond
  *        flu : fast neutron fluence (10^25 /m^2)
  *        fima : percent fima. used for kernel property
  *        nmats : number of material zone. current 3 (graphite/he gap/compact)
  *        TK : temperature of each zone (K)
+ *        rad : gap conductivity due to radiation heat transfer (W/m/K)
  *       output:
  *        cond : array of conductivity (W/m/K)
  *        rhocp : array of heat capacity (J/m^3/K)
  *      void makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
- *        Vec condvec[], Vec rhocpvec[]);
+ *        Vec radvec, Vec condvec[], Vec rhocpvec[]);
  *       vector version. each vector is same size (npows)
  *       output:
  *         condvec, rhocpvec
@@ -56,11 +59,14 @@ class MPwork : public MatPro {
 public:
   MPwork();
   ~MPwork();
+  void setPrlev(int prlev);
+  void setMonitor(int jmon);
   void set(double Psys);
+  void setEmiss(double emiss);
   void setTriso(double dKer, int nlays, double tlay[], double PF);
-  void makeSegProp(double flu, double fima, int nmats, double TK[],
+  void makeSegProp(double flu, double fima, int nmats, double TK[], double Rad,
 	double cond[], double rhocp[]);
-  void makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
+  void makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[], Vec radvec,
 	Vec condvec[], Vec rhocpvec[]);
   void makeTriProp(double flu, double fima, double TK,
 	int nmats, double cond[], double rhocp[]);
@@ -71,8 +77,9 @@ private:
   double effCond();
   double effRhoCp();
 
-  int prlev;
+  int prlev,jmon;
   double Psys;
+  double emiss;	// graphite emissivity
   /* triso quantities */
   int nzone;
   double TK_triso,flu_triso,fima_triso;

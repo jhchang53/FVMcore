@@ -84,6 +84,7 @@ public:
   void setPfactor(double pfact);
   void steady(double Tbulk, double qden);
   void steady(Vec Tbulkvec, Vec qdenvec);
+  Vec getRadVec();
 
   void start();
   void setLTE(double epsR, double epsA);
@@ -102,8 +103,10 @@ private:
   void prepare();
   void setupKPmat();
   void setupWGmat();
+  void setupGapmat();
   void setupAmat();
   void setupQvec(int jheat);
+  void gapRad();
   void setupMmat();
   void step_gam(double dt);
   void step_new(double dt);
@@ -113,7 +116,9 @@ private:
   int do_setup;
   int npows;	// for multiple vector
   int nzone,jheat,ndim;
+  int jgap;	// for radiation heat transfer
   double PI,rt3;
+  double SBgap;	// Stephan-Boltzmann constant x gap size
   double pfact;	// mulitplier to input power density
   int *mat;
   double *vol,*sl,*dL,*dR;
@@ -132,6 +137,9 @@ private:
   Mat KPmat;	// for multiple vector  for fuel pin
   Mat WGmat;	// for graphite region weights
   Vec Tpinvec,Tgravec;
+  Mat gapLeft,gapRite;	// retrieves left and right side temperature
+  Vec TgapLeft,TgapRite;
+  Vec Radvec;	// get effective condutivity of gap
   /*  for transients */
   double epsR,epsA;
   double TRgam,TRC2;    // TRBDF2 parameters

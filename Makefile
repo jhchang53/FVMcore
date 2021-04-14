@@ -37,6 +37,12 @@ cappdyn: cappdyn.o CoreDesc.o Geom.o GeomCAPP.o XS.o XScapp.o \
   NeutFVM.o Eigen.o EigenSIpower.o Delay.o Solver.o \
   Cond3D.o SegCond.o TriCond.o  THpro.o MatPro.o MPwork.o MPupdate.o
 	-$(CLINKER) -o cappdyn -g $^ ${PETSC_KSP_LIB} $(LSQL)
+#  to check gap radiation effect
+capprad: capprad.o CoreDesc.o Geom.o GeomCAPP.o XS.o XScapp.o \
+  NeutFVM.o Eigen.o EigenSIpower.o Delay.o Solver.o \
+  Cond3D.o SegCond.o TriCond.o THpro.o MatPro.o MPwork.o MPupdate.o
+	-$(CLINKER) -o capprad -g $^ ${PETSC_KSP_LIB} $(LSQL)
+
 #
 #  Thermal hydraulic
 #

@@ -54,7 +54,8 @@ double MPupdate::updateProp(SegCond *seg, TriCond *triso, Vec fluvec, Vec fimave
   ierr = VecWAXPY(Tempvec[1],1.0,Tgra,Tcomp);
 	CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecScale(Tempvec[1],0.5);	CHKERRABORT(PETSC_COMM_SELF,ierr);
-  makeSegProp(fluvec,fimavec,3,Tempvec,condSvec,rhocpSvec);
+  Vec radvec = seg->getRadVec();
+  makeSegProp(fluvec,fimavec,3,Tempvec,radvec,condSvec,rhocpSvec);
   seg->setCond(3,condSvec,rhocpSvec);
   ierr = VecCopy(Tcomp,Terrvec);	CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecAXPY(Terrvec,-1.0,Tcompvec);

@@ -12,7 +12,9 @@
 MPwork::MPwork()
 {
   prlev = 0;
+  jmon = -1;
   Psys = 3.0e+6;
+  emiss = 0.8;	// graphite emissivity
   nzone = 0;
   zrad = NULL;
   condL = NULL;
@@ -31,12 +33,28 @@ MPwork::~MPwork()
   delete [] Mat_keff;
   delete [] b_keff;
   delete [] ipiv_keff;
-};
+};	// MPwork::~MPwork
+
+void MPwork::setPrlev(int prl)
+{
+  prlev = prl;
+};	// MPwork::setPrlev
+
+void MPwork::setMonitor(int jmon_i)
+{
+  /*  set monitor node  */
+  jmon = jmon_i;
+};	// MPwork::setMonitor
 
 void MPwork::set(double Psys_i)
 {
   Psys = Psys_i;
 };
+
+void MPwork::setEmiss(double emiss_i)
+{
+  emiss = emiss_i;
+};	// MPwork::setEmiss
 
 void MPwork::setTriso(double dKer, int nlays, double tlay[], double PF_i)
 {
@@ -178,14 +196,14 @@ double MPwork::effRhoCp()
 };	// MPwork::effRhoCp
 
 void MPwork::makeSegProp(double flu, double fima, int nmats, double TK[],
-	double cond[], double rhocp[])
+	double Rad, double cond[], double rhocp[])
 {
   /*	prepare conductivities for SegCond  */
   assert(nmats == 3);
   /*  graphite/helium/compact  */
   cond[0]  = cond_IG110(TK[0],flu);
   rhocp[0] = rho_gra(TK[0]);
-  cond[1]  = cond_He(TK[1],Psys);
+  cond[1]  = cond_He(TK[1],Psys) + emiss*Rad;
   rhocp[1] = 5195.0*rho_He(TK[1],Psys);
   /*  compute compact conductivity using dimensions */
   setCondL(flu,fima,TK[2]);
@@ -209,7 +227,7 @@ void MPwork::makeTriProp(double flu, double fima, double TK,
 
 /*  vector version  */
 void MPwork::makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
-        Vec condvec[], Vec rhocpvec[])
+        Vec radvec, Vec condvec[], Vec rhocpvec[])
 {
   /*  prepares condvec and rhocpvec to be used for SegCond  */
   int npows;
@@ -226,7 +244,8 @@ void MPwork::makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
   ierr = VecGetArray(Tempvec[0],&T0);       CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecGetArray(Tempvec[1],&T1);       CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecGetArray(Tempvec[2],&T2);       CHKERRABORT(PETSC_COMM_SELF,ierr);
-
+  double *rad;
+  ierr = VecGetArray(radvec,&rad);       CHKERRABORT(PETSC_COMM_SELF,ierr);
   /*  prepare condvec, rhocpvec  */
   for(int m=0; m < nmats; m++) {
     ierr = VecSet(condvec[m],0.0);	CHKERRABORT(PETSC_COMM_SELF,ierr);
@@ -240,13 +259,13 @@ void MPwork::makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
     double TK[3];
     TK[0] = T0[j];  TK[1] = T1[j];  TK[2] = T2[j];
     double cond[3],rhocp[3];
-    makeSegProp(flu[j],fima[j], nmats,TK,cond,rhocp);
+    makeSegProp(flu[j],fima[j], nmats,TK,rad[j],cond,rhocp);
     indr[j] = rTbeg+j;
     for(int m=0; m < nmats; m++) {
       condM[m*jrange+j] = cond[m];
       rocpM[m*jrange+j] = rhocp[m];
     }
-    if(prlev > 1) {
+    if((prlev && (j==jmon)) || (prlev > 1)) {
       printf("j=%d :",j);
       printf(" %.2lf %.2lf %.2lf",T0[j],T1[j],T2[j]);
       printf(" %.2le %.2le %.2le",cond[0],cond[1],cond[2]);
@@ -271,6 +290,7 @@ void MPwork::makeSegProp(Vec fluvec, Vec fimavec, int nmats, Vec Tempvec[],
   ierr = VecRestoreArray(Tempvec[0],&T0);   CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecRestoreArray(Tempvec[1],&T1);   CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecRestoreArray(Tempvec[2],&T2);   CHKERRABORT(PETSC_COMM_SELF,ierr);
+  ierr = VecRestoreArray(radvec,&rad);	CHKERRABORT(PETSC_COMM_SELF,ierr);
   delete [] condM;
   delete [] rocpM;
 };	// MPwork::makeSegProp

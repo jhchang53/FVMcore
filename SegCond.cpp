@@ -16,7 +16,9 @@ SegCond::SegCond()
   PI = 2*acos(0.0);
   rt3 = sqrt(3.0);
   pfact = 1.0;
+  npows = 0;
   jheat=0;
+  jgap = -1;	// for radiation heat transfer
   mat = NULL;
   vol = NULL;
   sl = NULL;
@@ -38,6 +40,12 @@ SegCond::SegCond()
   WGmat = NULL;
   Tgravec = NULL;
   work2vec = NULL;
+  gapLeft = NULL;	// matrix to extract gap left side temperature
+  TgapLeft = NULL;
+  gapRite = NULL;
+  TgapRite = NULL;
+  Radvec = NULL;
+
   /* transient  */
   TRgam = 2.0-sqrt(2.0);
   TRC2 =  2*fabs(((-3*TRgam+4)*TRgam-2)/(12*(2-TRgam)));
@@ -74,6 +82,12 @@ SegCond::~SegCond()
 
   VecDestroy(&workvec);
   VecDestroy(&work2vec);
+  MatDestroy(&gapLeft);
+  VecDestroy(&TgapLeft);
+  MatDestroy(&gapRite);
+  VecDestroy(&TgapRite);
+  VecDestroy(&Radvec);
+
 
   MatDestroy(&Mmat);
   MatDestroy(&TRmat);
@@ -94,7 +108,7 @@ void SegCond::setGeom()
   /*  arrange from coolant hole to compact center  */
   double pitch = 0.035556;
   double rhole = 0.007;
-  int nring = 4;
+  int nring = 8;
   double rpin = 0.0115;
   double gap = 0.0005;
   /*  this is generated using Gmsh2d/Cond2D  */
@@ -130,6 +144,9 @@ void SegCond::setGeom()
   dL[ngra] = gap/2;
   dR[ngra] = gap/2;
   sl[ngra] = PI*(rpin+gap)/3;
+  jgap = ngra;	// for radiation heat transfer
+  /*	Stephan-Boltzman constant multiplied by gap thickness	*/
+  SBgap = 5.670374419e-8*gap;	// W/m/K^4
   /*  fuel region - divide equal volume */
   double ringvol = rpin*rpin/nring;
   double r0 = 0;
@@ -144,12 +161,18 @@ void SegCond::setGeom()
     dR[j] = rc-r0;
     r0 = r;
   }
+  if(prlev) {
+    printf("#k dL  dR  dL+dR vol\n");
+    for(int k=0; k < nzone; k++) {
+      printf("%d: %.2le %.2le %.2le %.3le\n",k,dL[k],dR[k],dL[k]+dR[k],vol[k]);
+    }
+  }
   /*  set conductivity  and specific heat */
   nmats = 3;
   cond = new double[nmats];
   rhocp = new double[nmats];
-  cond[0] = 5.0;  rhocp[0] = 1.0e+6;      // graphite
-  cond[1] = 0.25; rhocp[1] = 100.0;       // helium gap
+  cond[0] = 30.0;  rhocp[0] = 1.0e+6;      // graphite
+  cond[1] = 0.15+0.0617; rhocp[1] = 7.0e+3;	// helium gap at 800C, 30bar
   cond[2] = 5.0;  rhocp[2] = 1.0+6;      // compact
   /*  set heat generation region */
   jheat = ngra+1;
@@ -251,7 +274,27 @@ void SegCond::prepare()
         CHKERRABORT(PETSC_COMM_SELF,ierr);
   ierr = VecDuplicate(Tpinvec,&Tgravec);
 
+  /*  radiation heat transfer of gap */
+  if(jgap > 1) {	// we need gap position
+    ierr =  MatCreateAIJ(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,
+        ndim,npows, maxdiag,NULL, maxoff,NULL, &gapLeft);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+    ierr = MatSetOption(gapLeft,MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    ierr = MatSetUp(gapLeft); CHKERRABORT(PETSC_COMM_SELF,ierr);
+
+    ierr =  MatCreateAIJ(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,
+        ndim,npows, maxdiag,NULL, maxoff,NULL, &gapRite);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+    ierr = MatSetOption(gapRite,MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    ierr = MatSetUp(gapRite); CHKERRABORT(PETSC_COMM_SELF,ierr);
+
+    ierr = VecDuplicate(Tpinvec,&TgapLeft);
+    ierr = VecDuplicate(Tpinvec,&TgapRite);
+    ierr = VecDuplicate(Tpinvec,&Radvec);
+  }
+
   setupKPmat();
+  if(jgap > 1) setupGapmat();
   setupWGmat();
 
   /*  hcoef array  */
@@ -303,6 +346,41 @@ void SegCond::setupKPmat()
   delete [] indr;
   delete [] val;
 };	// SegCond::setupKPmat
+
+void SegCond::setupGapmat()
+{
+  assert((jgap > 0) && (jgap < nzone));
+  /*  matrix to extract temperatures at both side of gap  */
+  ierr = MatZeroEntries(gapLeft);  CHKERRABORT(PETSC_COMM_SELF,ierr);
+  ierr = MatZeroEntries(gapRite);  CHKERRABORT(PETSC_COMM_SELF,ierr);
+
+  int indr[1],indc[1];
+  double one[1];
+  one[0] = 1.0;
+  for(int kp=0; kp < npows; kp++) {
+    indc[0] = kp;
+    int indL = kp*nzone + jgap-1;
+    if((indL >= rAbeg) && (indL < rAend)) {
+      indr[0] = indL;
+      ierr = MatSetValues(gapLeft,1,indr,1,indc, one,INSERT_VALUES);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+    }
+    int indR = kp*nzone + jgap+1;
+    if((indR >= rAbeg) && (indR < rAend)) {
+      indr[0] = indR;
+      ierr = MatSetValues(gapRite,1,indr,1,indc, one,INSERT_VALUES);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+    }
+  }
+  ierr = MatAssemblyBegin(gapLeft,MAT_FINAL_ASSEMBLY);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+  ierr = MatAssemblyBegin(gapRite,MAT_FINAL_ASSEMBLY);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+  ierr = MatAssemblyEnd(gapLeft,MAT_FINAL_ASSEMBLY);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+  ierr = MatAssemblyEnd(gapRite,MAT_FINAL_ASSEMBLY);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+};	//  SegCond::setupGapmat
 
 void SegCond::setupWGmat()
 {
@@ -531,6 +609,7 @@ void SegCond::steady(double Tbulk, double qden)
   VecAXPY(srcvec,pfact*qden,Qvec);
   solver->solve(Amat,srcvec,Tvec);
   if(prlev > 1) VecView(Tvec,PETSC_VIEWER_STDOUT_WORLD);
+  if(jgap > 1)  gapRad();	// prepare radiation heat transfer
 };	// SegCond::steady (scalar)
 
 void SegCond::steady(Vec Tbulkvec, Vec qdenvec)
@@ -556,7 +635,55 @@ void SegCond::steady(Vec Tbulkvec, Vec qdenvec)
     if(mpid==0) printf("%s:%d Tvec.\n",__FILE__,__LINE__);
     VecView(Tvec,PETSC_VIEWER_STDOUT_WORLD);
   }
+  if(jgap > 1) gapRad();     // prepare radiation heat transfer
 };      // SegCond::steady (vector)
+
+void SegCond::gapRad()
+{
+  /*  retrieve gap Temperature  */
+  ierr = MatMultTranspose(gapLeft,Tvec,TgapLeft);
+	CHKERRABORT(PETSC_COMM_SELF,ierr);
+  if(prlev > 1) {
+    printf("TgapLeft\n");
+    VecView(TgapLeft,PETSC_VIEWER_STDOUT_WORLD);
+  }
+  ierr = MatMultTranspose(gapRite,Tvec,TgapRite);
+        CHKERRABORT(PETSC_COMM_SELF,ierr);
+  if(prlev > 1) {
+    printf("TgapRite\n");
+    VecView(TgapRite,PETSC_VIEWER_STDOUT_WORLD);
+  }
+  int rPbeg,rPend;
+  ierr = VecGetOwnershipRange(TgapLeft,&rPbeg,&rPend);
+         CHKERRABORT(PETSC_COMM_SELF,ierr);
+  int krange = rPend-rPbeg;
+
+  ierr = VecSet(Radvec,0.0);	CHKERRABORT(PETSC_COMM_SELF,ierr);
+  double *TL,*TR;
+  ierr = VecGetArray(TgapLeft,&TL);
+  ierr = VecGetArray(TgapRite,&TR);
+  int *indr = new int[krange];
+  double *val = new double[krange];
+  for(int k=0; k < krange; k++) {
+    /*   Stefan–Boltzmann law	*/
+    double Tl = TL[k];  double Tr = TR[k];
+    
+    /*  heat = sigSB*(Tr*Tr*Tr*Tr-Tl*Tl*Tl*Tl); // W/m^2  */
+    double gaprad = SBgap*(Tr+Tl)*(Tr*Tr+Tl*Tl);
+    indr[k] = rPbeg+k;
+    val[k] = gaprad;
+  }
+  ierr = VecSetValues(Radvec,krange,indr,val,INSERT_VALUES);
+  ierr = VecAssemblyBegin(Radvec);
+  ierr = VecRestoreArray(TgapLeft,&TL);
+  ierr = VecRestoreArray(TgapRite,&TR);
+  ierr = VecAssemblyEnd(Radvec);
+};	// SegCond::gapRad
+
+Vec SegCond::getRadVec()
+{
+  return Radvec;
+};	// SegCond::getRadvec
 
 void SegCond::start()
 {

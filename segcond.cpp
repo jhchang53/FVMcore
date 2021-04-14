@@ -29,12 +29,16 @@ int main(int argc, char **argv)
   double Tbulk = 800.0;		// deg-K
   double hcoef = 1700.0;
   double powden = 15.0e+6*fqcomp;
-  powden = 5.0e+6;
+  powden = 6.5e+6;
   if(mpid==0) printf(" compact powden=%.2le W/m^3\n",powden);
   cond->setHcoef(hcoef);
   cond->steady(Tbulk,powden);
   double Tpin = cond->getTpin();
   if(mpid==0) printf("== Tpin=%.2lf\n",Tpin);
+  Vec radvec = cond->getRadVec();
+  VecView(radvec,PETSC_VIEWER_STDOUT_WORLD);
+  cond->dumpT();
+  exit(0);
   /*  start transient */
   cond->start();
   double endtime = 100.0;

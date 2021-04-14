@@ -24,8 +24,8 @@ int main(int argc, char **argv)
 
   int prlev = 0;
 
-  SegCond *cond = new SegCond();
-  cond->setGeom();
+  SegCond *segcond = new SegCond();
+  segcond->setGeom();
   /*  prepare multiple powden vector  */
   int npows = 5;
   Vec powdenvec,Tbulkvec;
@@ -52,18 +52,19 @@ int main(int argc, char **argv)
   VecAssemblyBegin(fvec);
   VecAssemblyEnd(fvec);
 
-  // cond->setGeom1D(20,10,0.1);
-  cond->setup(npows);
+  // segcond->setGeom1D(20,10,0.1);
+  segcond->setup(npows);
   double Tbulk = 800.0;		// deg-K
   double powden = 5.0e+6;	// power density of compact
   double hcoef = 1700.0;
   VecSet(Tbulkvec,Tbulk);
   VecSet(powdenvec,powden);
-  cond->setHcoef(hcoef);
+  segcond->setHcoef(hcoef);
   /*  prepare Thermal property  */
   MPwork *mpwork = new MPwork();
   /* system pressure  */
   mpwork->set(3.0e+6);
+  mpwork->setEmiss(0.8);
   /*  triso dimension (in m) */
   double dKer = 500.0e-6;
   double tlay[] = {100.0,40.0,35.0,40.0};
@@ -93,14 +94,15 @@ int main(int argc, char **argv)
   Vec Tcomp;
   double err;
   for(int iter=0; iter < 8; iter++ ) {
-    cond->steady(Tbulkvec,powdenvec);
-    cond->dumpT();
-    Tcomp = cond->getTpinVec();
+    segcond->steady(Tbulkvec,powdenvec);
+    segcond->dumpT();
+    Tcomp = segcond->getTpinVec();
     if(prlev) {
       if(mpid==0) printf("Tcomp:\n");
       VecView(Tcomp,PETSC_VIEWER_STDOUT_WORLD);
     }
-    Vec Tgra = cond->getTgraVec();
+    Vec Tgra = segcond->getTgraVec();
+    Vec radvec = segcond->getRadVec();
     if(prlev) {
       if(mpid==0) printf("Tgra:\n");
       VecView(Tgra,PETSC_VIEWER_STDOUT_WORLD);
@@ -110,14 +112,14 @@ int main(int argc, char **argv)
     VecCopy(Tcomp,Tempvec[2]);
     VecWAXPY(Tempvec[1],1.0,Tgra,Tcomp);
     VecScale(Tempvec[1],0.5);
-    mpwork->makeSegProp(fluvec,fimavec,3,Tempvec,condvec,rhocpvec);
+    mpwork->makeSegProp(fluvec,fimavec,3,Tempvec,radvec,condvec,rhocpvec);
     if(prlev) {
       for(int m=0; m < 3; m++) {
         if(mpid==0) printf("condvec[%d]:\n",m);
         VecView(condvec[m],PETSC_VIEWER_STDOUT_WORLD);
       }
     }
-    cond->setCond(3,condvec,rhocpvec);
+    segcond->setCond(3,condvec,rhocpvec);
     VecCopy(Tcomp,Terr);
     VecAXPY(Terr,-1.0,Tcomp_old);
     VecNorm(Terr,NORM_1,&err);
@@ -138,11 +140,14 @@ int main(int argc, char **argv)
         if(mpid==0) printf("condTvec[%d]:\n",m);
         VecView(condTvec[m],PETSC_VIEWER_STDOUT_WORLD);
       }
+  Vec radvec = segcond->getRadVec();
+  printf("radvec:\n");
+  VecView(radvec,PETSC_VIEWER_STDOUT_WORLD);
 
   exit(0);
 
   /*  start transient */
-  cond->start();
+  segcond->start();
   double endtime = 100.0;
   double dtmin = 1.0e-6;
   double dtmax = 100.0;
@@ -159,12 +164,12 @@ int main(int argc, char **argv)
     printf("# time   dt     rLTE Tpeak  Tpin\n");
   }
   for(int nt=0; (time < endtime) && (nt < 10000); nt++) {
-    double rLTE = cond->step(dt,Tbulkvec,powdennew);
-    cond->march();
+    double rLTE = segcond->step(dt,Tbulkvec,powdennew);
+    segcond->march();
     time += dt;
     if(mpid==0) printf("%.3le %.1le %.1le",time,dt,rLTE);
-    double Tpeak = cond->getTpeak();
-    double Tpin = cond->getTpin();
+    double Tpeak = segcond->getTpeak();
+    double Tpin = segcond->getTpin();
     if(mpid==0) {
       printf(" %.2lf %.2lf",Tpeak,Tpin);
       printf("\n");
@@ -178,8 +183,8 @@ int main(int argc, char **argv)
     double remtime = endtime-time;
     if(dt > remtime) dt = remtime;
   }
-  cond->dumpT();
-  Tcomp = cond->getTpinVec();
+  segcond->dumpT();
+  Tcomp = segcond->getTpinVec();
   VecView(Tcomp,PETSC_VIEWER_STDOUT_WORLD);
 
   auto end = std::chrono::high_resolution_clock::now();

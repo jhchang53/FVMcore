@@ -130,6 +130,7 @@ int main(int argc, char **argv)
   MPupdate *mpupd = new MPupdate();
   /* system pressure  */
   mpupd->set(3.0e+6);
+  // mpupd->setEmiss(0.0);  // to know radiation effect of gap btw. fuel/block
 
   /*  triso dimension (in m) */
   double dKer = 500.0e-6;
@@ -174,7 +175,7 @@ int main(int argc, char **argv)
   double tolTemp = 0.01;
   if(mpid==0) printf(" Total vol=%.2le power=%.3le (W)  Mdot=%.2le Tin=%.1lf dT=%.2lf K\n",
         corevol,Totpow,Mdot/six,Tin,Totpow/Mdotcp);
-
+  if(mpid==0) printf("# \t \t Tpeak TPavg Texit  TSpeak  TSpin\n");
   for(int iter=0; iter < 10; iter++) {
     keff = neut->solveEigen();
     if(mpid==0) printf("== iter=%d keff=%.5lf",iter,keff);
@@ -243,11 +244,13 @@ int main(int argc, char **argv)
   /*  control rod movement  */
   rodpos[0] = 0.0;
   rodpos[1] = 3.1;
-  neut->setRodPos(2,rodpos);	// rod in 
-  printf("# time   dt    nLTE totpow peakden  ");
-  printf(" cLTE Tpeak TPavg Texit");
-  printf(" sLTE TSpeak TPin");
-  printf(" (errth errseg)\n");
+  // neut->setRodPos(2,rodpos);	// rod in 
+  if(mpid==0) {
+    printf("# time   dt    nLTE totpow peakden  ");
+    printf(" cLTE Tpeak TPavg Texit");
+    printf(" sLTE TSpeak TPin");
+    printf(" (errth errseg)\n");
+  }
   for(int nt=0; (time < endtime) && (nt < 1000); nt++) {
     double nLTE = neut->step(dt);
     neut->march();
